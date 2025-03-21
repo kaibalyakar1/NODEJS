@@ -1,0 +1,8 @@
+/*************  ✨ Codeium Command ⭐  *************/
+node_modules
+.env
+.env.example
+package-lock.json
+coverage
+dist
+/******  79c07184-43f6-4ccc-bff1-5bfb5518ea00  *******/
