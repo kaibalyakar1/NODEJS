@@ -1,9 +1,13 @@
 require("dotenv").config();
 const express = require("express");
 const { connectDb } = require("./db");
+const userRoutes = require("./routes/user.routes");
 
 const app = express();
+app.use(express.json()); // Enables JSON parsing in requests
+app.use(express.urlencoded({ extended: true }));
 
+app.use("/api/user", userRoutes);
 const start = async () => {
   try {
     await connectDb();
