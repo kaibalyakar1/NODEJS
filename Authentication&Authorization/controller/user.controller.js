@@ -1,7 +1,7 @@
 const dotenv = require("dotenv");
 dotenv.config();
 const JsonWebTokenError = require("jsonwebtoken");
-
+const jwt = require("jsonwebtoken");
 const express = require("express");
 const User = require("../model/user.model");
 const bcrypt = require("bcryptjs");
@@ -40,7 +40,8 @@ const registerUser = async (req, res) => {
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+
+    const user = await User.findOne({ email }).select("+password"); // Include password for verification
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -50,11 +51,8 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    const accessToken = JsonWebTokenError.sign(
-      {
-        id: user._id,
-        role: user.role,
-      },
+    const accessToken = jwt.sign(
+      { id: user._id, role: user.role },
       process.env.JWT_SECRET_KEY,
       { expiresIn: "1d" }
     );
@@ -62,7 +60,7 @@ const loginUser = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "User logged in successfully",
-      user,
+      user: { id: user._id, email: user.email, role: user.role }, // Avoid returning sensitive data
       accessToken,
     });
   } catch (error) {
@@ -80,8 +78,38 @@ const viewProfile = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+const changePassword = async (req, res) => {
+  try {
+    const user = req.user.id;
+    const { oldPassword, newPassword } = req.body;
+
+    const isUser = await User.findById(user);
+    if (!isUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(oldPassword, isUser.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    isUser.password = hashedPassword;
+    await isUser.save();
+
+    res.status(200).json({ success: true, message: "Password changed" });
+  } catch (error) {
+    console.error("Error changing password:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   viewProfile,
+  changePassword,
 };
